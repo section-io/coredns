@@ -153,7 +153,7 @@ func (z *Zone) Lookup(ctx context.Context, state request.Request, qname string) 
 	// Found entire name.
 	if found && shot {
 
-		if rrs := elem.Type(dns.TypeCNAME); len(rrs) > 0 && qtype != dns.TypeCNAME {
+		if rrs := elem.Type(dns.TypeCNAME); len(rrs) > 0 && qtype != dns.TypeCNAME && (qtype == dns.TypeA || qtype == dns.TypeAAAA || qname != z.origin) {
 			return z.externalLookup(ctx, state, elem, rrs)
 		}
 
