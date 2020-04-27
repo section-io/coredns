@@ -23,6 +23,19 @@ type Logger struct {
 	repl replacer.Replacer
 }
 
+func getEcsLogValue(extras []dns.RR) string {
+	for _, extra := range extras {
+		if dnsOpt, ok := extra.(*dns.OPT); ok {
+			for _, option := range dnsOpt.Option {
+				if subnet, ok := option.(*dns.EDNS0_SUBNET); ok {
+					return subnet.String()
+				}
+			}
+		}
+	}
+	return replacer.EmptyValue
+}
+
 // ServeDNS implements the plugin.Handler interface.
 func (l Logger) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
@@ -32,6 +45,7 @@ func (l Logger) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) 
 			continue
 		}
 
+		ecs := getEcsLogValue(r.Extra) //Must collect before further processing loses request detail
 		rrw := dnstest.NewRecorder(w)
 		rc, err := plugin.NextOrFailure(l.Name(), l.Next, ctx, rrw, r)
 
@@ -46,6 +60,7 @@ func (l Logger) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) 
 		}
 		if ok || ok1 {
 			logstr := l.repl.Replace(ctx, state, rrw, rule.Format)
+			logstr = logstr + " " + ecs
 			clog.Infof(logstr)
 		}
 
